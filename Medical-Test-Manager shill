@@ -1,0 +1,317 @@
+ 1 # File paths
+  2 medical_record_file="medicalRecord.txt"
+  3 medical_test_file="medicalTest.txt"
+  4 #medical_test_file
+  5 # Function to add a new medical test
+  6 add_new_test() {
+  7     while true; do
+  8         echo "Enter Patient ID (7 digits):"
+  9         read id
+ 10         if [[ ! $id =~ ^[0-9]{7}$ ]]; then
+ 11             echo "Invalid ID. It must be a 7-digit number."
+ 12             continue
+ 13         fi
+ 14
+ 15         echo "Select Medical Test:"
+ 16         echo "1) Hemoglobin (Hgb)"
+ 17         echo "2) Blood Glucose Test (BGT)"
+ 18         echo "3) LDL Cholesterol Low-Density Lipoprotein (LDL)"
+ 19         echo "4) Systolic Blood Pressure (systole)"
+ 20         echo "5) Diastolic Blood Pressure (diastole)"
+ 21         read test_choice
+ 22
+ 23         case $test_choice in
+ 24             1) test_name="Hgb" ;;
+ 25             2) test_name="BGT" ;;
+ 26             3) test_name="LDL" ;;
+ 27             4) test_name="systole" ;;
+ 28             5) test_name="diastole" ;;
+ 29             *) echo "Invalid test selection"; continue ;;
+ 30         esac
+ 31
+ 32         echo "Enter Test Date (YYYY-MM):"
+ 33         read test_date
+ 34         if [[ ! $test_date =~ ^[0-9]{4}-[0-9]{2}$ ]]; then
+ 35             echo "Invalid date format. Please enter in YYYY-MM format."
+ 36             continue
+ 37         fi
+ 38
+ 39         echo "Enter Test Result:"
+ 40         read result
+ 41         if [[ ! $result =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+ 42             echo "Invalid result. It should be a numeric value."
+ 43             continue
+ 44         fi
+ 45
+ 46         unit=$(grep "$test_name" "$medical_test_file" | grep -oP "Unit: \K[^;]*")
+ 47         if [[ -z $unit ]]; then
+ 48             echo "Invalid test name or unit."
+ 49             continue
+ 50         fi
+ 51
+ 52         echo "Select Test Status:"
+ 53         echo "1) Completed"
+ 54         echo "2) Reviewed"
+ 55         echo "3) Pending"
+ 56         read status_choice
+ 57
+ 58         case $status_choice in
+ 59             1) status="Completed" ;;
+ 60             2) status="Reviewed" ;;
+ 61             3) status="Pending" ;;
+ 62             *) echo "Invalid status selection"; continue ;;
+ 63         esac
+ 64
+ 65         echo "$id: $test_name, $test_date, $result, $unit, $status" >> "$medical_record_file"
+ 66         echo "New test record added successfully."
+ 67         break
+ 68     done
+ 69 }
+ 70
+ 71 # Function to search for a test by patient ID
+ 72 search_by_id() {
+ 73     echo "Enter Patient ID (7 digits):"
+ 74     read id
+ 75     if [[ ! $id =~ ^[0-9]{7}$ ]]; then
+ 76         echo "Invalid ID. It must be a 7-digit number."
+ 77         return
+ 78     fi
+ 79
+ 80     echo "Select search option:"
+ 81     echo "1) Retrieve all patient tests"
+ 82     echo "2) Retrieve all abnormal patient tests"
+ 83     echo "3) Retrieve all patient tests in a given period"
+ 84     echo "4) Retrieve all patient tests based on test status"
+ 85     read search_option
+ 86
+ 87     case $search_option in
+ 88         1)
+ 89             grep "^$id:" "$medical_record_file" || echo "No records found for Patient ID $id."
+ 90             ;;
+ 91         2)
+ 92             grep "^$id:" "$medical_record_file" | while read -r line; do
+ 93                 test_name=$(echo "$line" | cut -d ',' -f1 | cut -d ':' -f2 | xargs)
+ 94                 result=$(echo "$line" | cut -d ',' -f3 | xargs)
+ 95                 data=$(grep "$test_name" "$medical_test_file")
+ 96                 min_range=$(echo "$data" | sed -n 's/.*Range: > \([0-9.]*\), <.*/\1/p')
+ 97                 max_range=$(echo "$data" | sed -n 's/.*Range: > [0-9.]*, < \([0-9.]*\).*/\1/p')
+ 98
+ 99                 # Convert result to integer for comparison (removes decimal)
+100                 result_int=${result%.*}
+101
+102                 if [[ -z $min_range ]]; then
+103                     max_range=$(echo "$data" | sed -n 's/.*Range: < \([0-9.]*\).*/\1/p')
+104                     max_range_int=${max_range%.*}
+105                     if [[ $result_int -ge $max_range_int ]]; then
+106                         echo "$line"
+107                     fi
+108                 else
+109                     min_range_int=${min_range%.*}
+110                     max_range_int=${max_range%.*}
+111                     if [[ $result_int -lt $min_range_int || $result_int -gt $max_range_int ]]; then
+112                         echo "$line"
+113                     fi
+114                 fi
+115             done
+116             ;;
+117         3)
+118             echo "Enter Start Date (YYYY-MM):"
+119             read start_date
+120             echo "Enter End Date (YYYY-MM):"
+121             read end_date
+122             grep "^$id:" "$medical_record_file" | awk -F ', ' -v start="$start_date" -v end="$end_date" '$2 >= start && $2 <= end'
+123             ;;
+124         4)
+125             echo "Select Test Status:"
+126             echo "1) Completed"
+127             echo "2) Reviewed"
+128             echo "3) Pending"
+129             read status_choice
+130             case $status_choice in
+131                 1) status="Completed" ;;
+132                 2) status="Reviewed" ;;
+133                 3) status="Pending" ;;
+134                 *) echo "Invalid status selection"; return ;;
+135             esac
+136             grep -i "^$id:" "$medical_record_file" | grep -i "$status"
+137             ;;
+138         *)
+139             echo "Invalid option."
+140             ;;
+141     esac
+142 }
+143
+144 # Function to retrieve abnormal tests by test name
+145 # Function to retrieve abnormal tests by test name
+146 # Function to retrieve abnormal tests by test name
+147 # Function to retrieve abnormal tests by test name
+148 # Function to retrieve abnormal tests by test name
+149 # Function to search for up-normal test results (replaces retrieve_abnormal_tests)
+150 # Function to search for up-normal test results (replaces retrieve_abnormal_tests)
+151 #fuction for search for up nirmal test # Function to search for up-normal test results (replaces retrieve_abnormal_tests)
+152 search_normalized_tests() {
+153     while read -r record; do
+154         patient_id=$(echo "$record" | cut -d ':' -f1)
+155         test_name=$(echo "$record" | tr -s ':' ',' | cut -d ',' -f2 | xargs)
+156         test_result=$(echo "$record" | cut -d ',' -f3 | xargs)
+157
+158         if [ "$test_name" = "Hgb" ]; then
+159             test_data=$(grep "$test_name" "$medical_test_file")
+160             min_value=$(echo "$test_data" | sed -n 's/.*Range: > \([0-9.]*\), < \([0-9.]*\).*/\1/p')
+161             max_value=$(echo "$test_data" | sed -n 's/.*Range: > [0-9.]*, < \([0-9.]*\).*/\1/p')
+162             if (( $(echo "$test_result >= $min_value" | bc -l) && $(echo "$test_result <= $max_value" | bc -l) )); then
+163                 echo "$record"
+164             fi
+165         elif [ "$test_name" = "BGT" ]; then
+166             test_data=$(grep "$test_name" "$medical_test_file")
+167             min_value=$(echo "$test_data" | sed -n 's/.*Range: > \([0-9.]*\), < \([0-9.]*\).*/\1/p')
+168             max_value=$(echo "$test_data" | sed -n 's/.*Range: > [0-9.]*, < \([0-9.]*\).*/\1/p')
+169             if (( $(echo "$test_result >= $min_value" | bc -l) && $(echo "$test_result <= $max_value" | bc -l) )); then
+170                 echo "$record"
+171             fi
+172         elif [ "$test_name" = "LDL" ]; then
+173             test_data=$(grep "$test_name" "$medical_test_file")
+174             upper_limit=$(echo "$test_data" | sed -n 's/.*Range: < \([0-9]\+\).*/\1/p')
+175             if (( $(echo "$test_result < $upper_limit" | bc -l) )); then
+176                 echo "$record"
+177             fi
+178         elif [ "$test_name" = "systole" ]; then
+179             test_data=$(grep "$test_name" "$medical_test_file")
+180             upper_limit=$(echo "$test_data" | sed -n 's/.*Range: < \([0-9]\+\).*/\1/p')
+181             if (( $(echo "$test_result < $upper_limit" | bc -l) )); then
+182                 echo "$record"
+183             fi
+184         elif [ "$test_name" = "diastole" ]; then
+185             test_data=$(grep "$test_name" "$medical_test_file")
+186             upper_limit=$(echo "$test_data" | sed -n 's/.*Range: < \([0-9]\+\).*/\1/p')
+187             if (( $(echo "$test_result < $upper_limit" | bc -l) )); then
+188                 echo "$record"
+189             fi
+190         fi
+191     done < "$medical_record_file"
+192 }
+193
+194
+195
+196 # Function to calculate average test value
+197 # Function to calculate average test values
+198 avreg_test_value() {
+199     # Initialize accumulators and counters using associative arrays
+200     declare -A total_values=( ["Hgb"]=0.0 ["BGT"]=0.0 ["LDL"]=0.0 ["systole"]=0.0 ["diastole"]=0.0 )
+201     declare -A count_values=( ["Hgb"]=0 ["BGT"]=0 ["LDL"]=0 ["systole"]=0 ["diastole"]=0 )
+202
+203     record_file="medicalRecord.txt"  # Ensure the filename is set correctly
+204
+205     # Read the file line by line
+206     while read -r record; do
+207         # Extract the test name and result
+208         test_name=$(echo "$record" | tr -s ':' ',' | cut -d ',' -f2 | xargs)
+209         test_result=$(echo "$record" | cut -d ',' -f3 | xargs)
+210
+211         # Accumulate results and count occurrences based on test type
+212         if [[ -n "${total_values[$test_name]}" ]]; then
+213             total_values["$test_name"]=$(echo "${total_values[$test_name]} + $test_result" | bc)
+214             count_values["$test_name"]=$((count_values["$test_name"] + 1))
+215         fi
+216
+217     done < "$record_file"
+218
+219     # Calculate and display averages if counts are greater than zero
+220     for test in "${!total_values[@]}"; do
+221         if [ "${count_values[$test]}" -gt 0 ]; then
+222             avg_value=$(echo "scale=2; ${total_values[$test]} / ${count_values[$test]}" | bc)
+223             echo "Average $test = $avg_value"
+224         fi
+225     done
+226 }
+227 # Function to update an existing test result
+228 update_test_result() {
+229     echo "Enter Patient ID (7 digits):"
+230     read id
+231     if [[ ! $id =~ ^[0-9]{7}$ ]]; then
+232         echo "Invalid ID. It must be a 7-digit number."
+233         return
+234     fi
+235
+236     # Search for all tests related to the Patient ID
+237     grep "^$id:" "$medical_record_file"
+238     if [[ $? -ne 0 ]]; then
+239         echo "No records found for Patient ID $id."
+240         return
+241     fi
+242
+243     echo "Enter the test name you want to update (e.g., Hgb, BGT, LDL, systole, diastole):"
+244     read test_name
+245
+246     # Ensure test_name is valid
+247     valid_test=$(grep -i "$test_name" "$medical_test_file")
+248     if [[ -z $valid_test ]]; then
+249         echo "Invalid test name. Please ensure it matches exactly with a valid test."
+250         return
+251     fi
+252
+253     # Search for the specific test record
+254     record=$(grep "^$id: $test_name" "$medical_record_file")
+255     if [[ -z $record ]]; then
+256         echo "No records found for Patient ID $id with test $test_name."
+257         return
+258     fi
+259
+260     echo "Existing record found: $record"
+261     echo "Enter the new test result:"
+262     read new_result
+263     if [[ ! $new_result =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+264         echo "Invalid result. It should be a numeric value."
+265         return
+266     fi
+267
+268     echo "Enter the new test date (YYYY-MM):"
+269     read new_date
+270     if [[ ! $new_date =~ ^[0-9]{4}-[0-9]{2}$ ]]; then
+271         echo "Invalid date format. Please enter in YYYY-MM format."
+272         return
+273     fi
+274
+275     echo "Select the new test status:"
+276     echo "1) Completed"
+277     echo "2) Reviewed"
+278     echo "3) Pending"
+279     read status_choice
+280
+281     case $status_choice in
+282         1) new_status="Completed" ;;
+283         2) new_status="Reviewed" ;;
+284         3) new_status="Pending" ;;
+285         *) echo "Invalid status selection"; return ;;
+286     esac
+287
+288     # Form the new record line
+289     new_record="$id: $test_name, $new_date, $new_result, $(echo "$record" | cut -d ',' -f4 | xargs), $new_status"
+290
+291     # Update the file
+292     sed -i "s|^$record$|$new_record|" "$medical_record_file"
+293
+294     echo "Test record updated successfully."
+295 }
+296
+297 # Main menu
+298 while true; do
+299     echo "Patient Record Management System"
+300     echo "1) Add New Test Record"
+301     echo "2) Search Test by Patient ID"
+302     echo "3) Searching for up normal tests"
+303     echo "4) Calculate Average Test Values"
+304     echo "5) Update an Existing Test Result"
+305     echo "6) Exit"
+306     read choice
+307
+308     case $choice in
+309         1) add_new_test ;;
+310         2) search_by_id ;;
+311         3) search_normalized_tests ;;
+312         4) avreg_test_value ;;
+313         5) update_test_result ;;  # Added the new option here
+314         6) break ;;
+315         *) echo "Invalid choice. Please try again." ;;
+316     esac
+317 done
